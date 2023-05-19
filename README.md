@@ -30,11 +30,12 @@
 ##  Решение:
 ###  4-5:
 
-[Код клиента-клумбы](https://github.com/fodof91/OC_HW_03/blob/master/4-5/client_flowerbed.c)
-[Код клиента садовника](https://github.com/fodof91/OC_HW_03/blob/master/4-5/client_gardener.c)
-[Код сервера](https://github.com/fodof91/OC_HW_03/blob/master/4-5/server.c)
-[Код скрипта запуска](https://github.com/fodof91/OC_HW_03/blob/master/4-5/run.sh)
-[Код Makefile](https://github.com/fodof91/OC_HW_03/blob/master/4-5/Makefile)
+1. [Код клиента-клумбы](https://github.com/fodof91/OC_HW_03/blob/master/4-5/client_flowerbed.c)
+2. [Код клиента садовника](https://github.com/fodof91/OC_HW_03/blob/master/4-5/client_gardener.c)
+3. [Код сервера](https://github.com/fodof91/OC_HW_03/blob/master/4-5/server.c)
+4. [Код скрипта запуска](https://github.com/fodof91/OC_HW_03/blob/master/4-5/run.sh)
+5. [Код Makefile](https://github.com/fodof91/OC_HW_03/blob/master/4-5/Makefile)
+
 Система состоит из сервера и 3-х клиентов: клумба и 2 садовника.
 Клумба постоянно отправляет запрос серверу с данными о завядших цветах на ней, а получает информацию о новых поливах.
 
