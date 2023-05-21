@@ -123,15 +123,17 @@ int main(int argc, char *argv[]) {
     if (connect(sock, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) {
         DieWithError("connect() failed\n");
     }
-    time_t last, cur, start;
+    time_t last, cur;
     last = time(NULL);
-    start = last;
     flowerbed.day = 0;
     for (;;) {
         cur = time(NULL);
         if (last + TIME_SLEEP <= cur) {
             printf("Завядшие цветы вечером:");
             printFlowerbed();
+            if (flowerbed.day == 16) {
+                break;
+            }
             last = cur; // Начинаем новый день каждую TIME_SLEEP секунду
             new_day();
             printf("=============================================================\n");
@@ -143,7 +145,6 @@ int main(int argc, char *argv[]) {
 
         // Send the string to the server
         send(sock, request, 41, 0);
-
         if ((bytesRcvd = recv(sock, response, 41, 0)) <= 0) {
             DieWithError("recv() failed or connection closed prematurely\n");
         }

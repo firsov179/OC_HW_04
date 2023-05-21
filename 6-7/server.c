@@ -18,14 +18,13 @@ void DieWithError(char *errorMessage);  /* Error handling function */
 
 void *FlowerbedHandle(void *arg) {
     for (;;) {
-        int flowerbed_socket = *(int *) arg;
+        int flowerbed_socket = ((int *)arg)[0];
+        int printer_socket = ((int *)arg)[1];
         sem_wait(semaphore);
         char request[RCVBUFSIZE];
-
         /* Receive message from client */
         if ((recv(flowerbed_socket, request, RCVBUFSIZE, 0)) < 0)
             DieWithError("recv() failed");
-
         /* Send received string and receive again until end of transmission */
         for (int i = 0; i < 40; ++i) {
             cur_flowerbed[i] = request[i];
@@ -39,17 +38,25 @@ void *FlowerbedHandle(void *arg) {
 void *GardenerHandle(void *arg) {
     int flag = 1;
     for (;;) {
-        int flowerbed_socket = *(int *) arg;
+        int gardener_socket = ((int *)arg)[0];
+        int printer_socket = ((int *)arg)[1];
+        int id = ((int *)arg)[2];
         sem_wait(semaphore);
         char request[RCVBUFSIZE];
 
         /* Receive message from client */
-        if ((recv(flowerbed_socket, request, RCVBUFSIZE, 0)) < 0)
+        if ((recv(gardener_socket, request, RCVBUFSIZE, 0)) < 0)
             DieWithError("recv() failed");
 
         if (request[0] == 'n') {
             // начало дня у садовника -> передаем информацию о цветах которые нужно полить.
-            send(flowerbed_socket, cur_flowerbed, 41, 0);
+            send(gardener_socket, cur_flowerbed, 41, 0);
+            char response[42];
+            response[0] = 'n';
+            for (int i = 0; i < 41; ++i) {
+                response[i + 1] = cur_flowerbed[i];
+            }
+            send(printer_socket, response, 42, 0);
             if (flag == 1) {
                 for (int i = 0; i < 40; ++i) {
                     cur_water[i] = '0';
@@ -70,7 +77,17 @@ void *GardenerHandle(void *arg) {
                 }
             }
             /* Message response to client */
-            send(flowerbed_socket, response, 41, 0);
+            send(gardener_socket, response, 41, 0);
+            char response_print[42];
+            if (id == 1) {
+                response_print[0] = 'a';
+            } else {
+                response_print[0] = 'b';
+            }
+            for (int i = 0; i < 41; ++i) {
+                response_print[i + 1] = response[i];
+            }
+            send(printer_socket, response_print, 42, 0);
         }
         sem_post(semaphore);
     }
@@ -78,9 +95,9 @@ void *GardenerHandle(void *arg) {
 
 int main(int argc, char *argv[]) {
     int servSock;                    /* Socket descriptor for server */
-    int flowerbed_sock, gardener_sock1, gardener_sock2;                    /* Socket descriptor for client */
+    int flowerbed_sock, gardener_socket, gardener_sock2, printer_sock;                    /* Socket descriptor for client */
     struct sockaddr_in servAddr; /* Local address */
-    struct sockaddr_in flowerbed_addr, gardener_addr_1, gardener_addr_2; /* Client address */
+    struct sockaddr_in flowerbed_addr, gardener_addr_1, gardener_addr_2, printer_addr; /* Client address */
     unsigned short port;     /* Server port */
     unsigned int clntLen;            /* Length of client address data structure */
     sem_t local_semaphore;
@@ -129,7 +146,7 @@ int main(int argc, char *argv[]) {
         DieWithError("accept() failed");
     printf("Handling client %s\n", inet_ntoa(flowerbed_addr.sin_addr));
 
-    if ((gardener_sock1 = accept(servSock, (struct sockaddr *) &gardener_addr_1,
+    if ((gardener_socket = accept(servSock, (struct sockaddr *) &gardener_addr_1,
                                  &clntLen)) < 0)
         DieWithError("accept() failed");
     printf("Handling client %s\n", inet_ntoa(gardener_addr_1.sin_addr));
@@ -139,16 +156,30 @@ int main(int argc, char *argv[]) {
         DieWithError("accept() failed");
     printf("Handling client %s\n", inet_ntoa(gardener_addr_2.sin_addr));
 
-    pthread_t thread1;
-    pthread_t thread2;
-    pthread_t thread3;
-    int result1 = pthread_create(&thread1, NULL,
-                                 GardenerHandle, (int *) &gardener_sock1);
-    int result2 = pthread_create(&thread2, NULL,
-                                 GardenerHandle, (int *) &gardener_sock2);
-    int result3 = pthread_create(&thread3, NULL,
-                                 FlowerbedHandle, (int *) &flowerbed_sock);
+    if ((printer_sock = accept(servSock, (struct sockaddr *) &printer_addr,
+                                 &clntLen)) < 0)
+        DieWithError("accept() failed");
+    printf("Handling client %s\n", inet_ntoa(printer_addr.sin_addr));
 
+    pthread_t thread1, thread2, thread3;
+    int data1[3];
+    data1[0] = gardener_socket;
+    data1[1] = printer_sock;
+    data1[2] = 1;
+    int result1 = pthread_create(&thread1, NULL,
+                                 GardenerHandle, (void *) &data1);
+    int data2[3];
+    data2[0] = gardener_sock2;
+    data2[1] = printer_sock;
+    data2[2] = 2;
+    int result2 = pthread_create(&thread2, NULL,
+                                 GardenerHandle, (void *) &data2);
+    int data3[2];
+    data3[0] = flowerbed_sock;
+    data3[1] = printer_sock;
+    printf("%d", flowerbed_sock);
+    int result3 = pthread_create(&thread3, NULL,
+                                 FlowerbedHandle, (void *) &data3);
     sleep(100);
     if (result1 || result2 || result3) {
         printf("The threads could not be joined.\n");
