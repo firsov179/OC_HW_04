@@ -74,7 +74,4 @@
 ![9](https://github.com/fodof91/OC_HW_04/blob/main/sample/2.png) 
 ![9](https://github.com/fodof91/OC_HW_04/blob/main/sample/2.png) 
 
-https://github.com/fodof91/OC_HW_04/edit/main/README.md#:~:text=1-,.png,-2.png
-
-
 [В виде файла](https://github.com/fodof91/OC_HW_04/blob/master/sample)
