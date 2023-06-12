@@ -44,15 +44,16 @@ void new_day() {
 }
 
 char *requestBuilder() {
-    char *res = (char *) malloc(41 * sizeof(char));
+    char *res = (char *) malloc(42 * sizeof(char));
     for (int i = 0; i < 40; i++) {
         if (flowerbed.flowers[i] == NORMAL) { // создаем строку с информацией о цветах.
-            res[i] = '0'; // i-й цыеток не нуждается  в поливе
+            res[i + 1] = '0'; // i-й цыеток не нуждается в поливе
         } else {
-            res[i] = '1'; // i-й цыеток нуждается  в поливе
+            res[i + 1] = '1'; // i-й цыеток нуждается в поливе
         }
     }
-    res[40] = '\0';
+    res[0] = 'F';
+    res[41] = '\0';
     return res;
 }
 
@@ -85,53 +86,48 @@ char *Parse(char *request, int size, MessageStatus *status);
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
+    if (argc != 3)  // Test for correct number of arguments
+    {
+        fprintf(stderr, "Usage: %s <Server IP> <Server Port>\n", argv[0]);
+        exit(1);
+    }
     for (int i = 0; i < FLOWERS; i++) {
         flowerbed.flowers[i] = NORMAL;
     }
-    int sock;                        // Socket descriptor 
-    struct sockaddr_in server_address; // Echo server address 
-    unsigned short port;     // Echo server port
-    char *servIP;                    // Server IP address (dotted quad) 
+    const char* server_ip = argv[1];
+    int server_port = atoi(argv[2]);
 
-    char response[RCVBUFSIZE];     // Buffer for echo string 
-    unsigned int requestSize;      // Length of string to echo 
-    int bytesRcvd, totalBytesRcvd;   // Bytes read in single recv() and total bytes read 
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    socklen_t addr_len = sizeof(serv_addr);
+    char buffer[42] = {0};
 
-    if (argc != 3)  // Test for correct number of arguments 
-    {
-        fprintf(stderr, "Usage: %s <Server IP> <Server Port>\n",
-                argv[0]);
-        exit(1);
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
 
-    servIP = argv[1];             // First arg: server IP address (dotted quad)
-    port = atoi(argv[2]); // Use given port, if any
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(server_port);
 
-
-    // Create a reliable, stream socket using TCP
-    if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        DieWithError("socket() failed");
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
+        perror("Invalid address/Address not supported");
+        exit(EXIT_FAILURE);
     }
-
-    // Construct the server address structure
-    memset(&server_address, 0, sizeof(server_address));     // Zero out structure
-    server_address.sin_family = AF_INET;             // Internet address family
-    server_address.sin_addr.s_addr = inet_addr(servIP);   // Server IP address
-    server_address.sin_port = htons(port); // Server port
-
-    // Establish the connection to the echo server
-    if (connect(sock, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) {
-        DieWithError("connect() failed\n");
-    }
-    time_t last, cur, start;
+    time_t last, cur;
     last = time(NULL);
-    start = last;
     flowerbed.day = 0;
+    char response[42];
     for (;;) {
         cur = time(NULL);
         if (last + TIME_SLEEP <= cur) {
             printf("Завядшие цветы вечером:");
             printFlowerbed();
+            if (flowerbed.day == 31) {
+                return 0;
+            }
             last = cur; // Начинаем новый день каждую TIME_SLEEP секунду
             new_day();
             printf("=============================================================\n");
@@ -142,13 +138,14 @@ int main(int argc, char *argv[]) {
         char *request = requestBuilder();
 
         // Send the string to the server
-        send(sock, request, 41, 0);
-
-        if ((bytesRcvd = recv(sock, response, 41, 0)) <= 0) {
+        sendto(sock, request, strlen(request), 0, (struct sockaddr *)&serv_addr, addr_len);
+        if (recvfrom(sock, response, 42, 0, (struct sockaddr *)&serv_addr, &addr_len) <= 0) {
             DieWithError("recv() failed or connection closed prematurely\n");
         }
         water(response);
     }
+    // Close the socket
     close(sock);
-    exit(0);
+
+    return 0;
 }
